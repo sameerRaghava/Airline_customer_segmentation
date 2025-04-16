@@ -1,0 +1,267 @@
+1. Represent the book_date column in "yyyy-mm-dd" format using the Bookings table.
+SELECT book_ref, TO_CHAR(book_date, 'YYYY-MM-DD') AS book_date, total_amount
+FROM Bookings;
+
+
+2. Get the following columns in the exact sequence: ticket_no, boarding_no, seat_no, passenger_id, passenger_name
+SELECT 
+    b.ticket_no, 
+    b.boarding_no, 
+    b.seat_no, 
+    t.passenger_id, 
+    t.passenger_name
+	COUNT(b.flight_id) AS flight_count
+FROM 
+    Boarding_passes b
+JOIN 
+    Tickets t 
+ON 
+    b.ticket_no = t.ticket_no;
+
+3. Find the seat number which is least allocated among all seats.
+SELECT seat_no, COUNT(*) AS allocation_count
+FROM Boarding_passes
+GROUP BY seat_no
+ORDER BY allocation_count ASC
+LIMIT 1;
+
+4. Month-wise highest paying passenger.
+
+SELECT TO_CHAR(book_date, 'MON-YY') AS month_name, passenger_id, passenger_name, MAX(total_amount) AS total_amount
+FROM Tickets
+JOIN Bookings ON Tickets.book_ref = Bookings.book_ref
+GROUP BY TO_CHAR(book_date, 'MON-YY'), passenger_id, passenger_name
+ORDER BY MAX(total_amount) DESC;
+
+5. Month-wise least paying passenger.
+
+SELECT TO_CHAR(book_date, 'MON-YY') AS month_name, passenger_id, passenger_name, MIN(total_amount) AS total_amount
+FROM Tickets
+JOIN Bookings ON Tickets.book_ref = Bookings.book_ref
+GROUP BY TO_CHAR(book_date, 'MON-YY'), passenger_id, passenger_name
+ORDER BY MIN(total_amount);
+
+6. Flights with return journeys (more than 1 flight per passenger).
+
+SELECT 
+    t.passenger_id,
+    t.passenger_name,
+    t.ticket_no,
+    COUNT(tf.flight_id) AS flight_count
+FROM Tickets t
+JOIN Ticket_flights tf ON t.ticket_no = tf.ticket_no
+GROUP BY t.passenger_id, t.passenger_name, t.ticket_no
+HAVING COUNT(tf.flight_id) > 1;
+
+
+
+7. Tickets without boarding passes.
+
+SELECT COUNT(*) AS tickets_without_boarding_passes
+FROM Tickets t
+LEFT JOIN Boarding_passes b ON t.ticket_no = b.ticket_no
+WHERE b.ticket_no IS NULL;
+
+
+8. Longest flight details.
+
+SELECT 
+    flight_no,
+    departure_airport,
+    arrival_airport,
+    aircraft_code,
+    (EXTRACT(EPOCH FROM (actual_arrival - actual_departure)) / 3600)::NUMERIC(10, 2) AS duration_hours
+FROM Flights
+WHERE actual_departure IS NOT NULL AND actual_arrival IS NOT NULL
+ORDER BY duration_hours DESC
+LIMIT 1;
+
+
+9. All morning flights (6AM - 11AM).
+ 
+SELECT 
+    flight_id,
+    flight_no,
+    scheduled_departure,
+    scheduled_arrival,
+    departure_airport,
+    arrival_airport
+FROM Flights
+WHERE EXTRACT(HOUR FROM scheduled_departure) BETWEEN 6 AND 11;
+
+10. Earliest morning flight (2AM - 6AM) for every airport.
+
+
+SELECT flight_id, flight_no, scheduled_departure, scheduled_arrival,departure_airport,
+       (scheduled_arrival - scheduled_departure) AS timings
+FROM Flights
+WHERE EXTRACT(HOUR FROM scheduled_departure) BETWEEN 2 AND 6
+ORDER BY scheduled_departure ASC;
+
+11. Airport codes in Europe/Moscow timezone.
+
+SELECT airport_code
+FROM Airports
+WHERE timezone = 'Europe/Moscow';
+
+12. Count of seats in various fare conditions for every aircraft code.
+
+SELECT aircraft_code, fare_conditions, COUNT(seat_no) AS seat_count
+FROM Seats
+GROUP BY aircraft_code, fare_conditions;
+
+13. Aircraft codes with at least one business class seat.
+
+SELECT DISTINCT aircraft_code
+FROM Seats
+WHERE fare_conditions = 'Business';
+
+14. Airport with the maximum number of departure flights.
+
+with t1 as (SELECT departure_airport, COUNT(*) AS flight_count
+FROM Flights
+GROUP BY departure_airport)
+
+SELECT 
+departure_airport as airport_name
+from t1
+ORDER BY flight_count DESC
+LIMIT 1;
+
+15. Airport with the least number of scheduled departure flights.
+
+with t1 as (SELECT departure_airport, COUNT(*) AS flight_count
+FROM Flights
+GROUP BY departure_airport)
+
+SELECT 
+departure_airport as airport_name
+from t1
+ORDER BY flight_count ASC
+LIMIT 1;
+
+
+16. Flights from DME without actual departure.
+
+SELECT COUNT(*) AS flight_count
+FROM Flights
+WHERE departure_airport = 'DME' AND actual_departure IS NULL;
+
+17. Flight IDs with a range between 3000 and 6000.
+
+SELECT f.flight_id, f.aircraft_code, a.range
+FROM Flights f
+JOIN Aircrafts a ON f.aircraft_code = a.aircraft_code
+WHERE a.range BETWEEN 3000 AND 6000;
+
+18. Count of flights flying between URS and KUF.
+
+SELECT COUNT(*) AS flight_count
+FROM Flights
+WHERE (departure_airport = 'URS' AND arrival_airport = 'KUF') 
+   OR (departure_airport = 'KUF' AND arrival_airport = 'URS');
+   
+19. Flights from either NOZ or KRR.
+
+SELECT COUNT(*) AS flight_count
+FROM Flights
+WHERE departure_airport IN ('NOZ', 'KRR');
+
+20. Flights from a list of airports (KZN, DME, etc.).
+
+SELECT departure_airport, COUNT(*) AS flight_count
+FROM Flights
+WHERE departure_airport IN ('KZN', 'DME', 'NBC', 'NJC', 'GDX', 'SGC', 'VKO', 'ROV')
+GROUP BY departure_airport;
+
+21. Flight details with range between 3000 and 6000 and departing from DME.
+
+SELECT f.flight_no, f.aircraft_code, range, f.departure_airport
+FROM Flights f
+JOIN Aircrafts a ON f.aircraft_code = a.aircraft_code
+WHERE range BETWEEN 3000 AND 6000 AND departure_airport = 'DME';
+
+22. Airbus flights that are canceled or delayed.
+
+SELECT f.flight_id, a.model as aircraft_model
+FROM Flights f
+JOIN Aircrafts a ON f.aircraft_code = a.aircraft_code
+WHERE a.model LIKE '%Airbus%' AND status IN ('Cancelled', 'Delayed');
+
+23. Boeing flights that are canceled or delayed.
+
+SELECT f.flight_id, a.model as aircraft_model
+FROM Flights f
+JOIN Aircrafts a ON f.aircraft_code = a.aircraft_code
+WHERE a.model LIKE '%Boeing%' AND status IN ('Cancelled', 'Delayed');
+
+24. Airport with most canceled arriving flights.
+
+SELECT arrival_airport as airport_name
+FROM Flights
+WHERE status = 'Cancelled'
+GROUP BY arrival_airport
+limit 1
+
+25. Airbus flight IDs.
+
+SELECT F.flight_id, A.model as aircraft_model
+FROM Flights F
+JOIN Aircrafts A ON F.aircraft_code = A.aircraft_code
+WHERE A.model LIKE '%Airbus%';
+
+26. Last flight (date-wise) from every airport.
+
+SELECT flight_id, flight_no, scheduled_departure, departure_airport
+FROM Flights
+WHERE (departure_airport) IN (
+    SELECT departure_airport
+    FROM Flights
+);
+
+27. Customers with refunds due to cancellations.
+
+SELECT passenger_name, SUM(amount) AS total_refund
+FROM Tickets
+JOIN Ticket_flights ON Tickets.ticket_no = Ticket_flights.ticket_no
+JOIN Flights ON Ticket_flights.flight_id = Flights.flight_id
+WHERE status = 'Cancelled'
+GROUP BY passenger_name;
+
+28. First canceled flight from every airport (date-wise).
+
+SELECT flight_id, flight_no, scheduled_departure, departure_airport
+FROM Flights
+WHERE status = 'Cancelled'
+  AND (departure_airport, scheduled_departure) IN (
+    SELECT departure_airport, MIN(scheduled_departure)
+    FROM Flights
+    WHERE status = 'Cancelled'
+    GROUP BY departure_airport
+);
+
+29. Airbus flights that got canceled.
+
+SELECT flight_id
+FROM Flights
+JOIN Aircrafts ON Flights.aircraft_code = Aircrafts.aircraft_code
+WHERE aircrafts.model LIKE '%Airbus%' AND status='Cancelled';
+
+30. Flight with the highest range.
+
+SELECT flight_id, range
+FROM Flights
+JOIN Aircrafts ON Flights.aircraft_code = Aircrafts.aircraft_code
+ORDER BY range DESC
+LIMIT 1;
+
+SELECT 
+    returndate, 
+    Territory_id, 
+    Product_id, 
+    returnquantity
+FROM returns
+WHERE returndate BETWEEN '2020-04-01' AND '2020-06-04'
+ORDER BY returndate ASC, Territory_id ASC;
+
+
