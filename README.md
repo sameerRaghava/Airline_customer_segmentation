@@ -1,2 +1,2 @@
-# My-Fourth-Project
-Airline Customer Segmentation using SQL
+# Airline Customer Segmentation using SQL
+This project showcases how SQL can be used to extract meaningful insights from a structured relational database. By writing optimized queries, I analyzed customer purchasing behavior, revenue trends, and product popularity. Key operations involved data filtering, joining multiple tables, aggregation, and using window functions. The project highlights strong foundational skills in SQL for data analysis and reporting.
